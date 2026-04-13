@@ -1,0 +1,292 @@
+
+<h2 class="sr-only">MSP430 sound meter — circuit diagram, C code, and build guide</h2>
+<style>
+.tabs{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.tb{background:none;border:0.5px solid var(--color-border-tertiary);padding:6px 18px;border-radius:var(--border-radius-md);cursor:pointer;font-size:13px;color:var(--color-text-secondary);transition:background .15s,color .15s}
+.tb.on{background:var(--color-background-secondary);color:var(--color-text-primary);border-color:var(--color-border-secondary);font-weight:500}
+.pane{display:none}.pane.on{display:block}
+.cb{background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:1rem 1.1rem;font-family:var(--font-mono);font-size:11.5px;line-height:1.7;overflow-x:auto;margin:0;white-space:pre;color:var(--color-text-primary);max-height:520px;overflow-y:auto}
+.cpbtn{float:right;margin:0 0 8px;background:none;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);padding:3px 12px;font-size:11px;cursor:pointer;color:var(--color-text-secondary)}
+.ct{width:100%;border-collapse:collapse;font-size:12.5px;margin-bottom:1rem}
+.ct th{text-align:left;font-weight:500;font-size:11px;color:var(--color-text-secondary);border-bottom:0.5px solid var(--color-border-secondary);padding:6px 8px;text-transform:uppercase;letter-spacing:.04em}
+.ct td{padding:5px 8px;border-bottom:0.5px solid var(--color-border-tertiary);color:var(--color-text-primary);vertical-align:top}
+.ct tr:last-child td{border-bottom:none}
+.ct code,.sbody code{font-family:var(--font-mono);font-size:10.5px;background:var(--color-background-secondary);padding:1px 5px;border-radius:3px;border:0.5px solid var(--color-border-tertiary)}
+.step{display:flex;gap:12px;margin-bottom:1.1rem;align-items:flex-start}
+.snum{min-width:26px;height:26px;border-radius:50%;background:var(--color-background-secondary);border:0.5px solid var(--color-border-secondary);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:500;color:var(--color-text-primary);flex-shrink:0;margin-top:1px}
+.sbody{font-size:13px;line-height:1.65;color:var(--color-text-primary)}
+.sec{font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.06em;color:var(--color-text-tertiary);margin:1.25rem 0 .6rem;padding-top:.25rem}
+.note{background:var(--color-background-info);border:0.5px solid var(--color-border-info);border-radius:var(--border-radius-md);padding:.6rem .9rem;font-size:12px;color:var(--color-text-info);margin:.75rem 0;line-height:1.6}
+.warn{background:var(--color-background-warning);border:0.5px solid var(--color-border-warning);border-radius:var(--border-radius-md);padding:.6rem .9rem;font-size:12px;color:var(--color-text-warning);margin:.75rem 0;line-height:1.6}
+.ptl{font-size:13px;font-weight:500;color:var(--color-text-primary);margin:1rem 0 .3rem}
+</style>
+
+<div class="tabs">
+  <button class="tb on" onclick="showTab(this,'circuit')">Circuit diagram</button>
+  <button class="tb" onclick="showTab(this,'code')">C code</button>
+  <button class="tb" onclick="showTab(this,'steps')">Build steps</button>
+</div>
+
+<div id="circuit" class="pane on">
+<svg width="100%" viewBox="0 0 680 250" role="img">
+  <title>Sound meter block diagram: MAX9814 mic module → MSP430G2553 → 74HC595 → 8 LEDs</title>
+  <desc>Block diagram showing four components connected in series: MAX9814 microphone module feeds analog audio to MSP430G2553 ADC pin P1.0; three MSP430 GPIO pins drive the 74HC595 shift register; eight outputs of the 74HC595 drive eight LEDs through 220-ohm resistors.</desc>
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+  </defs>
+
+  <g class="node c-teal" onclick="sendPrompt('Tell me more about the MAX9814 microphone amplifier module')">
+    <rect x="12" y="50" width="116" height="105" rx="10" stroke-width="0.5"/>
+    <text class="th" x="70" y="83" text-anchor="middle" dominant-baseline="central">MAX9814</text>
+    <text class="ts" x="70" y="102" text-anchor="middle" dominant-baseline="central">Mic amplifier</text>
+    <text class="ts" x="70" y="120" text-anchor="middle" dominant-baseline="central">Auto-gain AGC</text>
+    <text class="ts" x="70" y="138" text-anchor="middle" dominant-baseline="central">3.3 V supply</text>
+  </g>
+
+  <g class="node c-purple" onclick="sendPrompt('Tell me more about the MSP430G2553 microcontroller ADC10')">
+    <rect x="186" y="30" width="140" height="145" rx="10" stroke-width="0.5"/>
+    <text class="th" x="256" y="65" text-anchor="middle" dominant-baseline="central">MSP430G2553</text>
+    <text class="ts" x="256" y="85" text-anchor="middle" dominant-baseline="central">Microcontroller</text>
+    <text class="ts" x="256" y="105" text-anchor="middle" dominant-baseline="central">10-bit ADC on P1.0</text>
+    <text class="ts" x="256" y="125" text-anchor="middle" dominant-baseline="central">GPIO P1.1 / P1.2 / P1.3</text>
+    <text class="ts" x="256" y="145" text-anchor="middle" dominant-baseline="central">1 MHz DCO clock</text>
+  </g>
+
+  <g class="node c-blue" onclick="sendPrompt('Explain how the 74HC595 shift register works in detail')">
+    <rect x="394" y="30" width="130" height="145" rx="10" stroke-width="0.5"/>
+    <text class="th" x="459" y="65" text-anchor="middle" dominant-baseline="central">74HC595</text>
+    <text class="ts" x="459" y="85" text-anchor="middle" dominant-baseline="central">8-bit shift register</text>
+    <text class="ts" x="459" y="105" text-anchor="middle" dominant-baseline="central">SER → pin 14</text>
+    <text class="ts" x="459" y="125" text-anchor="middle" dominant-baseline="central">SRCLK → pin 11</text>
+    <text class="ts" x="459" y="145" text-anchor="middle" dominant-baseline="central">RCLK → pin 12</text>
+  </g>
+
+  <g class="node c-amber" onclick="sendPrompt('How do I wire 8 LEDs with 220 ohm resistors to the 74HC595 outputs?')">
+    <rect x="592" y="50" width="82" height="105" rx="10" stroke-width="0.5"/>
+    <text class="th" x="633" y="83" text-anchor="middle" dominant-baseline="central">8× LED</text>
+    <text class="ts" x="633" y="103" text-anchor="middle" dominant-baseline="central">220Ω each</text>
+    <text class="ts" x="633" y="122" text-anchor="middle" dominant-baseline="central">QA → QH</text>
+    <text class="ts" x="633" y="140" text-anchor="middle" dominant-baseline="central">Common GND</text>
+  </g>
+
+  <line x1="128" y1="103" x2="184" y2="103" stroke="var(--color-text-secondary)" stroke-width="1.5" marker-end="url(#ah)"/>
+  <text class="ts" x="156" y="93" text-anchor="middle">OUT</text>
+  <text class="ts" x="156" y="117" text-anchor="middle">→ P1.0</text>
+
+  <line x1="326" y1="93"  x2="392" y2="93"  stroke="var(--color-text-secondary)" stroke-width="1.2" marker-end="url(#ah)"/>
+  <line x1="326" y1="103" x2="392" y2="103" stroke="var(--color-text-secondary)" stroke-width="1.2" marker-end="url(#ah)"/>
+  <line x1="326" y1="113" x2="392" y2="113" stroke="var(--color-text-secondary)" stroke-width="1.2" marker-end="url(#ah)"/>
+  <text class="ts" x="359" y="82"  text-anchor="middle">P1.1→SER</text>
+  <text class="ts" x="359" y="128" text-anchor="middle">P1.3→RCLK</text>
+
+  <line x1="524" y1="103" x2="590" y2="103" stroke="var(--color-text-secondary)" stroke-width="2" marker-end="url(#ah)"/>
+  <text class="ts" x="557" y="93"  text-anchor="middle">QA – QH</text>
+  <text class="ts" x="557" y="117" text-anchor="middle">8 outputs</text>
+
+  <rect x="12" y="178" width="662" height="55" rx="6" fill="none" stroke="var(--color-border-tertiary)" stroke-width="0.5" stroke-dasharray="4 3"/>
+  <text class="ts" x="340" y="196" text-anchor="middle" dominant-baseline="central">All ICs powered from MSP430 LaunchPad 3.3 V rail (J1 pin 1).  GND to J1 pin 20.</text>
+  <text class="ts" x="340" y="218" text-anchor="middle" dominant-baseline="central">74HC595: tie SRCLR (pin 10) → 3.3 V (never reset)  |  OE (pin 13) → GND (always enabled)</text>
+</svg>
+
+<p class="ptl" style="margin-top:1rem">MAX9814 → LaunchPad</p>
+<table class="ct">
+  <tr><th>MAX9814 pin</th><th>Connect to</th><th>Notes</th></tr>
+  <tr><td><code>VDD</code></td><td>3.3 V (J1-1)</td><td>Do not exceed 5.5 V</td></tr>
+  <tr><td><code>GND</code></td><td>GND (J1-20)</td><td>Common ground</td></tr>
+  <tr><td><code>OUT</code></td><td>P1.0 / A0 (J1-2)</td><td>Analog audio, ~1.65 V DC bias</td></tr>
+  <tr><td><code>GAIN</code></td><td>Float = 40 dB · GND = 60 dB</td><td>Connect to GND for highest sensitivity</td></tr>
+  <tr><td><code>AR</code></td><td>Leave floating</td><td>Default attack/release ratio</td></tr>
+</table>
+
+<p class="ptl">LaunchPad → 74HC595</p>
+<table class="ct">
+  <tr><th>LaunchPad</th><th>74HC595 signal</th><th>Pin #</th></tr>
+  <tr><td><code>P1.1</code></td><td>SER — serial data in</td><td>14</td></tr>
+  <tr><td><code>P1.2</code></td><td>SRCLK — shift clock</td><td>11</td></tr>
+  <tr><td><code>P1.3</code></td><td>RCLK — latch clock</td><td>12</td></tr>
+  <tr><td>3.3 V</td><td>VCC</td><td>16</td></tr>
+  <tr><td>3.3 V</td><td>SRCLR — active-low reset (tie high)</td><td>10</td></tr>
+  <tr><td>GND</td><td>GND</td><td>8</td></tr>
+  <tr><td>GND</td><td>OE — active-low output enable (tie low)</td><td>13</td></tr>
+</table>
+
+<p class="ptl">74HC595 → LED array (×8)</p>
+<table class="ct">
+  <tr><th>74HC595 output</th><th>Pin #</th><th>Wiring</th></tr>
+  <tr><td><code>QA</code></td><td>15</td><td>220Ω → LED1 anode (level 1 — softest)</td></tr>
+  <tr><td><code>QB</code></td><td>1</td><td>220Ω → LED2 anode (level 2)</td></tr>
+  <tr><td><code>QC – QG</code></td><td>2 – 6</td><td>220Ω → LED3–7 anodes (levels 3–7)</td></tr>
+  <tr><td><code>QH</code></td><td>7</td><td>220Ω → LED8 anode (level 8 — loudest)</td></tr>
+  <tr><td>—</td><td>—</td><td>All LED cathodes → GND (common)</td></tr>
+</table>
+</div>
+
+<div id="code" class="pane">
+  <button class="cpbtn" onclick="copyC()">Copy</button>
+  <pre class="cb" id="ccode"></pre>
+</div>
+
+<div id="steps" class="pane">
+  <p class="sec">Components list</p>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:.5rem">
+    <div style="background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);padding:.7rem 1rem;font-size:12.5px;line-height:1.8">
+      <div style="font-weight:500;margin-bottom:4px;font-size:13px">Hardware</div>
+      MSP430G2553 LaunchPad<br>MAX9814 mic module<br>74HC595 DIP-16 IC<br>8× LED (any color)<br>8× 220 Ω resistor<br>Breadboard + jumper wires
+    </div>
+    <div style="background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);padding:.7rem 1rem;font-size:12.5px;line-height:1.8">
+      <div style="font-weight:500;margin-bottom:4px;font-size:13px">Software</div>
+      Code Composer Studio (CCS)<br><span style="color:var(--color-text-secondary)">ti.com/tool/CCSTUDIO</span><br>— or — Energia IDE<br><span style="color:var(--color-text-secondary)">energia.nu</span><br>USB micro-B cable
+    </div>
+  </div>
+
+  <p class="sec">Build &amp; execution steps</p>
+
+  <div class="step"><div class="snum">1</div><div class="sbody"><strong>Place the 74HC595.</strong> Insert it straddling the center gap of the breadboard. Connect the power rails: 3.3 V from LaunchPad J1-1 and GND from J1-20 to the breadboard bus strips.</div></div>
+
+  <div class="step"><div class="snum">2</div><div class="sbody"><strong>Wire the shift register control pins.</strong> Connect <code>SRCLR</code> (pin 10) to 3.3 V and <code>OE</code> (pin 13) to GND. Run jumper wires from LaunchPad <code>P1.1 → SER</code>, <code>P1.2 → SRCLK</code>, <code>P1.3 → RCLK</code>.</div></div>
+
+  <div class="step"><div class="snum">3</div><div class="sbody"><strong>Wire the LED array.</strong> Place 8 LEDs in a row. Connect each anode through a 220 Ω resistor to 74HC595 outputs QA (pin 15) through QH (pin 7). Connect all cathodes to GND.</div></div>
+
+  <div class="step"><div class="snum">4</div><div class="sbody"><strong>Connect the MAX9814.</strong> <code>VDD → 3.3 V</code>, <code>GND → GND</code>, <code>OUT → P1.0</code>. For maximum sensitivity connect the <code>GAIN</code> pin to GND (60 dB). Leave <code>AR</code> floating.</div></div>
+
+  <div class="step"><div class="snum">5</div><div class="sbody"><strong>Install CCS or Energia.</strong> In CCS, go to <em>File → New → CCS Project</em>, set Target = MSP430G2553, select Empty Project (main.c). In Energia, go to <em>Tools → Board → MSP-EXP430G2553LP</em>.</div></div>
+
+  <div class="step"><div class="snum">6</div><div class="sbody"><strong>Paste and build the code.</strong> Copy the code from the Code tab. Replace <code>main.c</code> with it. Press <code>Ctrl+B</code> in CCS to build. Errors here usually mean a wrong target device selected.</div></div>
+
+  <div class="step"><div class="snum">7</div><div class="sbody"><strong>Flash to the LaunchPad.</strong> Connect via USB. In CCS press <code>F5</code> (Debug) — this flashes the firmware and halts at <code>main()</code>. Press <code>F8</code> (Resume) to run. In Energia just click Upload (→).</div></div>
+
+  <div class="step"><div class="snum">8</div><div class="sbody"><strong>Test.</strong> Speak, clap, or play music near the microphone. LEDs should light up progressively from LED1 (quiet) to LED8 (loud). If nothing lights up, confirm OUT → P1.0 and that GAIN is connected to GND.</div></div>
+
+  <div class="step"><div class="snum">9</div><div class="sbody"><strong>Calibrate thresholds.</strong> Edit the <code>levelToLED()</code> function in the code. Lower the threshold numbers to make the meter more responsive; raise them if LEDs are always fully lit. The thresholds map ADC amplitude deviation (0 – 512) to 8 bars.</div></div>
+
+  <div class="note"><strong>Energia users:</strong> The code uses raw MSP430 register names (<code>ADC10CTL0</code>, <code>WDTCTL</code>, etc.) that Energia passes through directly — no modifications needed. Just compile and upload.</div>
+  <div class="warn"><strong>Voltage warning:</strong> Keep everything at 3.3 V. The LaunchPad's GPIO and ADC pins are rated to VCC (3.3 V). A 5 V signal on P1.0 or P1.1 will damage the device permanently.</div>
+</div>
+
+<script>
+function showTab(btn,name){
+  document.querySelectorAll('.pane').forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('.tb').forEach(b=>b.classList.remove('on'));
+  document.getElementById(name).classList.add('on');
+  btn.classList.add('on');
+}
+
+const C=`#include <msp430.h>
+
+// ── Pin mapping ──────────────────────────────────────────────────
+#define SER_PIN    BIT1   // P1.1  →  74HC595 SER   (pin 14)
+#define SRCLK_PIN  BIT2   // P1.2  →  74HC595 SRCLK (pin 11)
+#define RCLK_PIN   BIT3   // P1.3  →  74HC595 RCLK  (pin 12)
+
+// ── ADC tuning ───────────────────────────────────────────────────
+// MAX9814 output is DC-biased at VDD/2 ≈ 1.65 V on a 3.3 V supply.
+// 10-bit ADC (0–1023) full-scale = 3.3 V  →  midpoint = 512.
+#define ADC_MID      512
+#define NUM_SAMPLES   30   // samples per display frame (~17 ms @ 1 MHz)
+
+void          shiftOut(unsigned char data);
+unsigned char levelToLED(unsigned int peak);
+
+// ────────────────────────────────────────────────────────────────
+void main(void)
+{
+    WDTCTL  = WDTPW | WDTHOLD;    // Disable watchdog
+    BCSCTL1 = CALBC1_1MHZ;        // Calibrated 1 MHz DCO
+    DCOCTL  = CALDCO_1MHZ;
+
+    // GPIO
+    P1DIR  |=  SER_PIN | SRCLK_PIN | RCLK_PIN;
+    P1OUT  &= ~(SER_PIN | SRCLK_PIN | RCLK_PIN);
+
+    // ADC10: channel A0 (P1.0), 64-clock sample-and-hold, VCC ref
+    ADC10CTL0 = ADC10SHT_3 | ADC10ON;
+    ADC10CTL1 = INCH_0;
+    ADC10AE0  = BIT0;               // Analog input enable on P1.0
+
+    unsigned int  peak = 0, raw, deviation;
+    unsigned char count = 0;
+
+    while (1)
+    {
+        // Trigger and wait for ADC conversion
+        ADC10CTL0 |= ENC | ADC10SC;
+        while (ADC10CTL1 & ADC10BUSY);
+        raw = ADC10MEM;
+
+        // Peak-hold: track absolute deviation from DC midpoint
+        deviation = (raw > ADC_MID) ? (raw - ADC_MID)
+                                    : (ADC_MID - raw);
+        if (deviation > peak) peak = deviation;
+
+        // Update LED bar every NUM_SAMPLES conversions
+        if (++count >= NUM_SAMPLES)
+        {
+            shiftOut(levelToLED(peak));
+            peak  = 0;
+            count = 0;
+        }
+
+        __delay_cycles(500);    // ~0.5 ms between samples
+    }
+}
+
+// ────────────────────────────────────────────────────────────────
+// Map peak amplitude (0 – 512) to an 8-bit LED bar-graph pattern.
+// Bit 0 (QA) = level 1 (quietest), Bit 7 (QH) = level 8 (loudest).
+// Adjust thresholds here to tune sensitivity.
+// ────────────────────────────────────────────────────────────────
+unsigned char levelToLED(unsigned int level)
+{
+    if (level <  15) return 0x00;  // ░░░░░░░░  silence
+    if (level <  55) return 0x01;  // ▪░░░░░░░
+    if (level < 100) return 0x03;  // ▪▪░░░░░░
+    if (level < 150) return 0x07;  // ▪▪▪░░░░░
+    if (level < 200) return 0x0F;  // ▪▪▪▪░░░░
+    if (level < 255) return 0x1F;  // ▪▪▪▪▪░░░
+    if (level < 320) return 0x3F;  // ▪▪▪▪▪▪░░
+    if (level < 400) return 0x7F;  // ▪▪▪▪▪▪▪░
+    return             0xFF;       // ▪▪▪▪▪▪▪▪  peak!
+}
+
+// ────────────────────────────────────────────────────────────────
+// Shift one byte MSB-first into the 74HC595.
+// RCLK rising edge latches the shift register into the output reg.
+// After shiftOut(), QA = LSB of data, QH = MSB of data.
+// ────────────────────────────────────────────────────────────────
+void shiftOut(unsigned char data)
+{
+    unsigned char i;
+
+    P1OUT &= ~RCLK_PIN;             // Hold latch low during shift
+
+    for (i = 0; i < 8; i++)
+    {
+        if (data & 0x80)
+            P1OUT |=  SER_PIN;      // Data bit = 1
+        else
+            P1OUT &= ~SER_PIN;      // Data bit = 0
+
+        P1OUT |=  SRCLK_PIN;        // Rising clock edge
+        __delay_cycles(4);
+        P1OUT &= ~SRCLK_PIN;        // Falling clock edge
+        __delay_cycles(4);
+
+        data <<= 1;                 // Next bit
+    }
+
+    P1OUT |=  RCLK_PIN;             // Latch: shift reg → output reg
+    __delay_cycles(4);
+    P1OUT &= ~RCLK_PIN;
+}`;
+
+document.getElementById('ccode').textContent=C;
+
+function copyC(){
+  navigator.clipboard.writeText(C);
+  const b=document.querySelector('.cpbtn');
+  b.textContent='Copied!';
+  setTimeout(()=>b.textContent='Copy',1800);
+}
+</script>
